@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+        db:
+          condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/app/.env
+      - ./internal/infra/db/schema/migrations:/app/internal/infra/db/schema/migrations
+    networks:
+      - mynetwork
+      
+  db:
+    container_name: db
+    image: "postgres"
+    ports:
+      - "54321:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=todo
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d todo"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    networks:
+      - mynetwork
+  
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    networks:
+      - mynetwork
+
+volumes:
+  database:
+
+networks:
+  mynetwork:
+    driver: bridge
